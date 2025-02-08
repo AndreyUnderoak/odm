@@ -7,9 +7,10 @@ from osgeo import osr, gdal
 import numpy as npy
 import matplotlib.pyplot as mplot  
 from termcolor import colored
+import rasterio
 
 class Img_Geo():
-    def __init__(self, link_to_file):
+    def __init__(self, link_to_file, link_to_depth = None):
         print(colored("Reading data from odm_orthophoto.tif ...",'yellow'))
         
         self.tif_file = gdal.Open(link_to_file)
@@ -22,6 +23,11 @@ class Img_Geo():
 
         self.get_projections()
 
+        self.depth_arr = None
+        if link_to_depth is not None:
+            self.depth_arr = rasterio.open(link_to_depth)
+            ds = gdal.Open(link_to_depth)
+            self.depth_arr = ds.GetRasterBand(1).ReadAsArray()
 
     def get_pixel_from_geo(self, geo_vector):
         print("\nCalculating pixel from geo...")
@@ -46,6 +52,20 @@ class Img_Geo():
         
         print("Output geo: (" + str(geo_vector[0]) + "; " + str(geo_vector[1]) + ")\n")
         return geo_vector
+    
+    # x, y from image approved
+    def get_depth_from_pic(self, x: int, y: int) -> float:
+        if self.depth_arr is None:
+            raise ValueError("Нет карты глубины")
+        # if not (0 <= x < self.depth_arr.width and 0 <= y < self.depth_arr.height):
+        #     raise ValueError(f"Координаты ({x}, {y}) выходят за границы изображения")
+        return self.depth_arr[y, x]
+    
+    def get_depth_from_geo(self, geo_vector):
+        if self.depth_arr is None:
+            raise ValueError("Нет карты глубины")
+        pix_vec = self.get_pixel_from_geo(geo_vector)
+        return self.get_depth_from_pic(pix_vec[0], pix_vec[1])
         
     def read_img(self):
         self.img_width  = self.tif_file.RasterXSize
